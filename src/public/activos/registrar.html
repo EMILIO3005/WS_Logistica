@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar activo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <div class="row justify-content-center">
+      <div class="col-md-7 col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Registrar activo</h4>
+          </div>
+
+          <div class="card-body">
+            <form id="formActivo">
+              <div class="mb-3">
+                <label for="categoria" class="form-label">Categoría</label>
+                <select id="categoria" name="idcategoria" class="form-select" required>
+                  <option value="">Cargando categorías...</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="descripcion" class="form-label">Descripción</label>
+                <input type="text" id="descripcion" name="descripcion" class="form-control" maxlength="150" placeholder="Ej. Laptop Lenovo Core i7" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="fotografia" class="form-label">Fotografía</label>
+                <input type="text" id="fotografia" name="fotografia" class="form-control" maxlength="250" placeholder="Ej. laptop_lenovo.jpg" required>
+                <div class="form-text">Ingresa el nombre o URL de la fotografía.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="estado" class="form-label">Estado</label>
+                <select id="estado" name="estado" class="form-select" required>
+                  <option value="">Seleccionar estado</option>
+                  <option value="Disponible">Disponible</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="Baja">Baja</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="precio" class="form-label">Precio</label>
+                <div class="input-group">
+                  <span class="input-group-text">S/</span>
+                  <input type="number" id="precio" name="precio" class="form-control" min="0.01" step="0.01" placeholder="0.00" required>
+                </div>
+              </div>
+
+              <div id="mensaje" class="alert d-none" role="alert"></div>
+
+              <div class="d-flex justify-content-between">
+                <a href="../index.html" class="btn btn-secondary">Volver</a>
+                <button type="submit" id="btnRegistrar" class="btn btn-success">Registrar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const formulario = document.getElementById("formActivo");
+    const categoria = document.getElementById("categoria");
+    const mensaje = document.getElementById("mensaje");
+    const btnRegistrar = document.getElementById("btnRegistrar");
+
+    function mostrarMensaje(texto, tipo) {
+      mensaje.textContent = texto;
+      mensaje.className = `alert alert-${tipo}`;
+    }
+
+    async function cargarCategorias() {
+      try {
+        const respuesta = await fetch("/api/categorias");
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.success) {
+          throw new Error(resultado.message || "Error al cargar categorías");
+        }
+
+        categoria.innerHTML = '<option value="">Seleccionar categoría</option>';
+
+        resultado.data.forEach(item => {
+          const opcion = document.createElement("option");
+          opcion.value = item.id;
+          opcion.textContent = item.categoria;
+          categoria.appendChild(opcion);
+        });
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      }
+    }
+
+    formulario.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const activo = {
+        idcategoria: Number(categoria.value),
+        descripcion: document.getElementById("descripcion").value.trim(),
+        fotografia: document.getElementById("fotografia").value.trim(),
+        estado: document.getElementById("estado").value,
+        precio: Number(document.getElementById("precio").value)
+      };
+
+      try {
+        btnRegistrar.disabled = true;
+        btnRegistrar.textContent = "Registrando...";
+
+        const respuesta = await fetch("/api/activos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(activo)
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.success) {
+          throw new Error(resultado.message || "Error al registrar activo");
+        }
+
+        mostrarMensaje("Activo registrado correctamente. ID: " + resultado.data.id, "success");
+        formulario.reset();
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      } finally {
+        btnRegistrar.disabled = false;
+        btnRegistrar.textContent = "Registrar";
+      }
+    });
+
+    cargarCategorias();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activos | Logística</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>Activos registrados</h1>
+      <a href="registrar.html" class="btn btn-success">+ Registrar activo</a>
+    </div>
+
+    <div id="mensaje" class="alert d-none"></div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead class="table-dark">
+              <tr>
+                <th>ID</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Precio</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="listaActivos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalEditar" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Editar activo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <form id="formEditar">
+            <input type="hidden" id="editarId">
+
+            <div class="mb-3">
+              <label class="form-label">Categoría</label>
+              <select id="editarCategoria" class="form-select" required></select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Descripción</label>
+              <input type="text" id="editarDescripcion" class="form-control" maxlength="150" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Fotografía</label>
+              <input type="text" id="editarFotografia" class="form-control" maxlength="250" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Estado</label>
+              <select id="editarEstado" class="form-select" required>
+                <option value="Disponible">Disponible</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="Baja">Baja</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Precio</label>
+              <input type="number" id="editarPrecio" class="form-control" min="0.01" step="0.01" required>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="btnGuardarCambios" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const listaActivos = document.getElementById("listaActivos");
+    const mensaje = document.getElementById("mensaje");
+    const modalElement = document.getElementById("modalEditar");
+    const modalEditar = new bootstrap.Modal(modalElement);
+
+    let categorias = [];
+    let activos = [];
+
+    function mostrarMensaje(texto, tipo) {
+      mensaje.textContent = texto;
+      mensaje.className = `alert alert-${tipo}`;
+    }
+
+    async function cargarCategorias() {
+      const respuesta = await fetch("/api/categorias");
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok || !resultado.success) {
+        throw new Error(resultado.message || "Error al cargar categorías");
+      }
+
+      categorias = resultado.data;
+    }
+
+    function obtenerNombreCategoria(id) {
+      const categoria = categorias.find(item => Number(item.id) === Number(id));
+      return categoria ? categoria.categoria : "Sin categoría";
+    }
+
+    async function cargarActivos() {
+      try {
+        listaActivos.innerHTML = "";
+
+        const respuesta = await fetch("/api/activos");
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.success) {
+          throw new Error(resultado.message || "Error al cargar activos");
+        }
+
+        activos = resultado.data;
+
+        if (activos.length === 0) {
+          listaActivos.innerHTML = `
+            <tr>
+              <td colspan="6" class="text-center">No existen activos registrados.</td>
+            </tr>
+          `;
+          return;
+        }
+
+        activos.forEach(activo => {
+          const fila = document.createElement("tr");
+
+          fila.innerHTML = `
+            <td>${activo.id}</td>
+            <td>${obtenerNombreCategoria(activo.idcategoria)}</td>
+            <td>${activo.descripcion}</td>
+            <td>${activo.estado}</td>
+            <td>S/ ${Number(activo.precio).toFixed(2)}</td>
+            <td>
+              <button class="btn btn-sm btn-primary me-1" onclick="editarActivo(${activo.id})">Editar</button>
+              <button class="btn btn-sm btn-danger" onclick="eliminarActivo(${activo.id})">Eliminar</button>
+            </td>
+          `;
+
+          listaActivos.appendChild(fila);
+        });
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      }
+    }
+
+    function editarActivo(id) {
+      const activo = activos.find(item => Number(item.id) === Number(id));
+
+      if (!activo) {
+        mostrarMensaje("No se encontró el activo.", "danger");
+        return;
+      }
+
+      document.getElementById("editarId").value = activo.id;
+      document.getElementById("editarDescripcion").value = activo.descripcion;
+      document.getElementById("editarFotografia").value = activo.fotografia;
+      document.getElementById("editarEstado").value = activo.estado;
+      document.getElementById("editarPrecio").value = activo.precio;
+
+      const select = document.getElementById("editarCategoria");
+      select.innerHTML = "";
+
+      categorias.forEach(categoria => {
+        const opcion = document.createElement("option");
+        opcion.value = categoria.id;
+        opcion.textContent = categoria.categoria;
+
+        if (Number(categoria.id) === Number(activo.idcategoria)) {
+          opcion.selected = true;
+        }
+
+        select.appendChild(opcion);
+      });
+
+      modalEditar.show();
+    }
+
+    document.getElementById("btnGuardarCambios").addEventListener("click", async function () {
+      const id = document.getElementById("editarId").value;
+
+      const activo = {
+        idcategoria: Number(document.getElementById("editarCategoria").value),
+        descripcion: document.getElementById("editarDescripcion").value.trim(),
+        fotografia: document.getElementById("editarFotografia").value.trim(),
+        estado: document.getElementById("editarEstado").value,
+        precio: Number(document.getElementById("editarPrecio").value)
+      };
+
+      try {
+        const respuesta = await fetch(`/api/activos/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(activo)
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.success) {
+          throw new Error(resultado.message || "No se pudo actualizar el activo");
+        }
+
+        modalEditar.hide();
+        mostrarMensaje("Activo actualizado correctamente.", "success");
+        await cargarActivos();
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      }
+    });
+
+    async function eliminarActivo(id) {
+      const activo = activos.find(item => Number(item.id) === Number(id));
+
+      if (!activo) {
+        return;
+      }
+
+      const confirmar = confirm(`¿Deseas eliminar el activo "${activo.descripcion}"?`);
+
+      if (!confirmar) {
+        return;
+      }
+
+      try {
+        const respuesta = await fetch(`/api/activos/${id}`, {
+          method: "DELETE"
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.success) {
+          throw new Error(resultado.message || "No se pudo eliminar el activo");
+        }
+
+        mostrarMensaje("Activo eliminado correctamente.", "success");
+        await cargarActivos();
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      }
+    }
+
+    async function iniciar() {
+      try {
+        await cargarCategorias();
+        await cargarActivos();
+      } catch (error) {
+        console.error(error);
+        mostrarMensaje(error.message, "danger");
+      }
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

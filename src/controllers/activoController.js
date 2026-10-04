@@ -68,7 +68,7 @@ const actualizarActivos = async(req, res) => {
     if (!filasAfectadas){
       return res.status(404).json({success:false, message:'el activo no existe'})
     }
-    return res.status(200).json({success: true, message:'Categoria actualizada correctamente'})
+    return res.status(200).json({success: true, message:'activo actualizada correctamente'})
     
   } catch (error) {
     console.log("Error al actualizar activo: ", error)
